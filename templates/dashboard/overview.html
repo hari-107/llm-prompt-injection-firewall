@@ -48,7 +48,7 @@
           <td class="small text-dim">{{ log.response_time_ms }}ms</td>
         </tr>
       {% empty %}
-        <tr><td colspan="6" class="text-center text-dim py-4">No requests yet. Try the <a href="{% url 'dashboard:tester' %}">Scan Tester</a>.</td></tr>
+        <tr><td colspan="6" class="text-center text-dim py-4">No requests yet. Try <a href="{% url 'dashboard:tester' %}">Orbit Chat</a>.</td></tr>
       {% endfor %}
       </tbody>
     </table>

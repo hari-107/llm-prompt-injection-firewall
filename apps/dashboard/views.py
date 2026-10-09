@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.accounts.permissions import role_of
@@ -133,7 +133,7 @@ def tester(request):
     result = None
     prompt = ""
     if request.method == "POST":
-        prompt = request.POST.get("prompt", "")
+        prompt = request.POST.get("prompt", "").strip()
         if prompt:
             engine = build_engine()
             started = time.perf_counter()
@@ -141,4 +141,8 @@ def tester(request):
             elapsed = (time.perf_counter() - started) * 1000
             result = r.as_dict()
             result["response_time_ms"] = round(elapsed, 2)
+        if "application/json" in request.headers.get("Accept", ""):
+            if not prompt:
+                return JsonResponse({"error": "Enter a message to inspect."}, status=400)
+            return JsonResponse({"result": result})
     return render(request, "dashboard/tester.html", {"result": result, "prompt": prompt, "active": "tester"})
