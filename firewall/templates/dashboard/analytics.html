@@ -1,0 +1,70 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block content %}
+<div class="section-eyebrow">THREAT INTELLIGENCE</div>
+<h1 class="page-title mb-1">Analytics</h1>
+<p class="page-intro mb-4">Explore traffic, attack patterns, and decisions across your gateway.</p>
+
+<div class="kpi-grid kpi-grid-analytics mb-3" id="kpiRow" aria-live="polite"></div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Top attack categories</div>
+    <div class="card-body"><div class="chart-frame"><canvas id="catChart"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Risk-level distribution</div>
+    <div class="card-body"><div class="chart-frame"><canvas id="levelChart"></canvas></div></div></div></div>
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header">Requests over time</div>
+    <div class="card-body"><div class="chart-frame"><canvas id="timelineChart"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Top sources (IP)</div>
+    <div class="card-body p-0"><table class="table table-sm mb-0" id="sourceTable"><tbody></tbody></table></div></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AXIS = { scales: FirewallCharts.axes };
+async function load() {
+  const response = await fetch('/api/analytics/', { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error('Analytics unavailable');
+  const d = await response.json();
+  document.getElementById('kpiRow').innerHTML = [
+    ['Total', d.total_requests], ['Avg latency (ms)', d.avg_latency_ms],
+    ['False positives', d.false_positives], ['False negatives', d.false_negatives],
+  ].map(([l, v]) => `<div class="col"><div class="kpi"><div class="label">${l}</div><div class="value">${Number(v ?? 0).toLocaleString()}</div></div></div>`).join('');
+
+  const cats = d.top_attack_categories || [];
+  FirewallCharts.create('catChart', { type: 'bar',
+    data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => c[1]), backgroundColor: '#61d8c6' }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } }, y: { ticks: { callback(value) { const name = this.getLabelForValue(value); return name.length > 22 ? name.slice(0, 20) + '…' : name; } } } } } });
+
+  const lvl = d.by_risk_level || {};
+  FirewallCharts.create('levelChart', { type: 'bar',
+    data: { labels: Object.keys(lvl).map(FirewallCharts.label), datasets: [{ data: Object.values(lvl),
+      backgroundColor: Object.keys(lvl).map(FirewallCharts.color) }] },
+    options: { plugins: { legend: { display: false } }, ...AXIS } });
+
+  const tl = d.timeline || [];
+  FirewallCharts.create('timelineChart', { type: 'line',
+    data: { labels: tl.map(x => x.day), datasets: [{ label: 'Requests', data: tl.map(x => x.count),
+      borderColor: '#61d8c6', backgroundColor: 'rgba(97,216,198,.13)', fill: true, tension: .35 }] },
+    options: { plugins: { legend: { display: false } }, ...AXIS } });
+
+  const sources = document.querySelector('#sourceTable tbody');
+  for (const source of d.top_sources || []) {
+    const row = sources.insertRow();
+    const address = row.insertCell();
+    address.className = 'mono small';
+    address.textContent = source.ip_address || 'Unknown';
+    const count = row.insertCell();
+    count.className = 'text-end';
+    count.textContent = source.n;
+  }
+  if (!sources.rows.length) sources.insertRow().insertCell().textContent = 'No data';
+}
+load().catch(() => {
+  FirewallCharts.unavailable();
+  document.getElementById('kpiRow').textContent = 'Analytics unavailable. Refresh to try again.';
+  document.querySelector('#sourceTable tbody').replaceChildren();
+  document.querySelector('#sourceTable tbody').insertRow().insertCell().textContent = 'Unavailable';
+});
+</script>
+{% endblock %}

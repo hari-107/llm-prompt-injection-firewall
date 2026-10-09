@@ -1,0 +1,93 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Firewall{% endblock %} | Sentinel</title>
+  <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
+  <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20261008-2" rel="stylesheet">
+</head>
+<body>
+{% if user.is_authenticated %}
+<div class="app-shell">
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
+  <aside class="sidebar" id="appSidebar">
+    <a class="brand" href="{% url 'dashboard:overview' %}">
+      <span class="brand-icon"><i class="bi bi-shield-check"></i></span>
+      <span class="brand-copy"><strong>Sentinel</strong><small>AI FIREWALL</small></span>
+    </a>
+    <div class="nav-caption">WORKSPACE</div>
+    <nav class="nav flex-column">
+      <a class="nav-link {% if active == 'overview' %}active{% endif %}" href="{% url 'dashboard:overview' %}"><i class="bi bi-grid-1x2"></i><span>Overview</span></a>
+      <a class="nav-link {% if active == 'logs' %}active{% endif %}" href="{% url 'dashboard:logs' %}"><i class="bi bi-clock-history"></i><span>Audit logs</span></a>
+      <a class="nav-link {% if active == 'rules' %}active{% endif %}" href="{% url 'dashboard:rules' %}"><i class="bi bi-sliders2"></i><span>Rules &amp; policies</span></a>
+      <a class="nav-link {% if active == 'analytics' %}active{% endif %}" href="{% url 'dashboard:analytics' %}"><i class="bi bi-bar-chart-line"></i><span>Analytics</span></a>
+      <a class="nav-link {% if active == 'tester' %}active{% endif %}" href="{% url 'dashboard:tester' %}"><i class="bi bi-crosshair2"></i><span>Scan tester</span></a>
+    </nav>
+    <div class="nav-caption nav-caption-tools">TOOLS</div>
+    <nav class="nav flex-column">
+      <a class="nav-link" href="/api/docs/" target="_blank" rel="noopener"><i class="bi bi-braces"></i><span>API docs</span><i class="bi bi-arrow-up-right nav-external"></i></a>
+      <a class="nav-link" href="/admin/" target="_blank" rel="noopener"><i class="bi bi-gear"></i><span>Admin</span><i class="bi bi-arrow-up-right nav-external"></i></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a class="companion-card" href="http://127.0.0.1:3000/" target="_blank" rel="noopener"><span class="companion-icon"><i class="bi bi-stars"></i></span><span><strong>Open Orbit</strong><small>Try the protected chatbot</small></span><i class="bi bi-arrow-up-right"></i></a>
+      <div class="account-row"><span class="account-avatar">{{ user.username|first|upper }}</span><span class="account-copy"><strong>{{ user.username }}</strong><small>{{ user.profile.role|default:"Analyst" }}</small></span><a href="{% url 'dashboard:logout' %}" aria-label="Sign out" title="Sign out"><i class="bi bi-box-arrow-right"></i></a></div>
+    </div>
+  </aside>
+  <div class="workspace">
+    <header class="workspace-bar">
+      <div class="workspace-bar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="appSidebar"><i class="bi bi-list"></i></button>
+        <span class="workspace-crumb">WORKSPACE</span><i class="bi bi-chevron-right crumb-divider"></i><strong>{% block topbar_title %}{{ active|default:"Dashboard"|title }}{% endblock %}</strong>
+      </div>
+      <div class="workspace-bar-right"><span class="system-indicator"><span></span>Local protection</span><span class="bar-divider"></span><span class="bar-user">{{ user.username }}</span></div>
+    </header>
+  <main class="content">
+    {% if messages %}
+      {% for m in messages %}
+        <div class="alert alert-{{ m.tags }} py-2">{{ m }}</div>
+      {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  </div>
+</div>
+{% else %}
+  {% block content_anon %}{% endblock %}
+{% endif %}
+<script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/dashboard-charts.js' %}?v=20261008-2"></script>
+<script>
+  (() => {
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('appSidebar');
+    const mobile = matchMedia('(max-width: 991px)');
+    const close = () => {
+      const wasOpen = document.body.classList.contains('sidebar-open');
+      document.body.classList.remove('sidebar-open');
+      toggle?.setAttribute('aria-expanded', 'false');
+      if (wasOpen && mobile.matches) toggle?.focus();
+    };
+    toggle?.addEventListener('click', () => {
+      const opened = document.body.classList.toggle('sidebar-open');
+      toggle.setAttribute('aria-expanded', String(opened));
+      if (opened) sidebar.querySelector('a')?.focus();
+    });
+    document.getElementById('sidebarScrim')?.addEventListener('click', close);
+    mobile.addEventListener('change', close);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') close();
+      if (event.key !== 'Tab' || !mobile.matches || !document.body.classList.contains('sidebar-open')) return;
+      const links = [...sidebar.querySelectorAll('a[href], button:not([disabled])')];
+      const first = links[0], last = links[links.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+  })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: firewall
+      POSTGRES_USER: firewall
+      POSTGRES_PASSWORD: firewall
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U firewall"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-in-prod}
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: "*"
+      DB_ENGINE: postgres
+      DB_HOST: db
+      DB_NAME: firewall
+      DB_USER: firewall
+      DB_PASSWORD: firewall
+      REDIS_URL: redis://redis:6379/0
+      CLASSIFIER_PROVIDER: ${CLASSIFIER_PROVIDER:-}
+      CLASSIFIER_API_KEY: ${CLASSIFIER_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
+      ENABLE_AI_CORRECTION: ${ENABLE_AI_CORRECTION:-false}
+      CORRECTION_API_KEY: ${CORRECTION_API_KEY:-}
+      CORRECTION_BASE_URL: ${CORRECTION_BASE_URL:-}
+      CORRECTION_MODEL: ${CORRECTION_MODEL:-}
+      CORRECTION_TIMEOUT_SECONDS: ${CORRECTION_TIMEOUT_SECONDS:-30}
+      CORRECTION_MAX_TOKENS: ${CORRECTION_MAX_TOKENS:-1000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

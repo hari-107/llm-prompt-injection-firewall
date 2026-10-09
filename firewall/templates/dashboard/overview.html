@@ -1,0 +1,82 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div><div class="section-eyebrow">SECURITY PULSE</div><h1 class="page-title mb-0">Firewall overview</h1><p class="page-intro">A clear view of every decision your AI gateway makes.</p></div>
+  {% if chain_ok %}<span class="badge badge-allow"><i class="bi bi-check-circle"></i> Log chain intact</span>
+  {% else %}<span class="badge badge-critical"><i class="bi bi-exclamation-triangle"></i> Log chain broken</span>{% endif %}
+</div>
+
+<div class="kpi-grid mb-4">
+  <div class="col"><div class="kpi"><div class="label"><i class="bi bi-activity me-1"></i> Total requests</div><div class="value">{{ total }}</div></div></div>
+  <div class="col"><div class="kpi blocked"><div class="label"><i class="bi bi-shield-x me-1"></i> Blocked</div><div class="value">{{ blocked }}</div></div></div>
+  <div class="col"><div class="kpi sanitized"><div class="label"><i class="bi bi-stars me-1"></i> Sanitized</div><div class="value">{{ sanitized }}</div></div></div>
+  <div class="col"><div class="kpi allowed"><div class="label"><i class="bi bi-shield-check me-1"></i> Allowed</div><div class="value">{{ allowed }}</div></div></div>
+  <div class="col"><div class="kpi"><div class="label"><i class="bi bi-stopwatch me-1"></i> Avg latency</div><div class="value">{{ avg_latency }}<span class="unit text-dim">ms</span></div></div></div>
+  <div class="col"><div class="kpi"><div class="label"><i class="bi bi-sliders2 me-1"></i> Active rules</div><div class="value">{{ rules_active }}</div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header">Requests over time</div>
+      <div class="card-body"><div class="chart-frame"><canvas id="timelineChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">Action distribution</div>
+      <div class="card-body"><div class="chart-frame"><canvas id="actionChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between">Recent activity
+    <a href="{% url 'dashboard:logs' %}" class="small text-decoration-none">View all →</a></div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Time</th><th>Request ID</th><th>Risk</th><th>Action</th><th>Rules</th><th>Latency</th></tr></thead>
+      <tbody>
+      {% for log in recent %}
+        <tr onclick="location.href='{% url 'dashboard:log_detail' log.pk %}'" style="cursor:pointer">
+          <td class="text-dim small">{{ log.created_at|date:"M d H:i:s" }}</td>
+          <td class="mono small">{{ log.request_id|truncatechars:12 }}</td>
+          <td><span class="badge badge-{{ log.risk_level|default:'safe' }}">{{ log.risk_level|default:"—" }}</span></td>
+          <td><span class="badge badge-{{ log.action }}">{{ log.action }}</span></td>
+          <td class="small text-dim">{{ log.matched_rules|join:", "|truncatechars:40|default:"—" }}</td>
+          <td class="small text-dim">{{ log.response_time_ms }}ms</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-dim py-4">No requests yet. Try the <a href="{% url 'dashboard:tester' %}">Scan Tester</a>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCharts() {
+  const res = await fetch('/api/analytics/', {headers: {'Accept': 'application/json'}});
+  if (!res.ok) throw new Error('Analytics unavailable');
+  const d = await res.json();
+  const tl = d.timeline || [];
+  FirewallCharts.create('timelineChart', {
+    type: 'line',
+    data: { labels: tl.map(x => x.day), datasets: [{ label: 'Requests', data: tl.map(x => x.count),
+      borderColor: '#61d8c6', backgroundColor: 'rgba(97,216,198,.13)', fill: true, tension: .35, pointBackgroundColor: '#a8f4e8' }] },
+    options: { plugins: { legend: { display: false } }, scales: FirewallCharts.axes }
+  });
+  const acts = d.by_action || {};
+  FirewallCharts.create('actionChart', {
+    type: 'doughnut',
+    data: { labels: Object.keys(acts).map(FirewallCharts.label), datasets: [{ data: Object.values(acts),
+      backgroundColor: Object.keys(acts).map(FirewallCharts.color), borderWidth: 2, borderColor: '#101827' }] },
+    options: { cutout: '72%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 18 } } } }
+  });
+}
+loadCharts().catch(FirewallCharts.unavailable);
+</script>
+{% endblock %}

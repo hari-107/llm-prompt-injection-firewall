@@ -1,0 +1,57 @@
+TERMS AND ACCEPTABLE USE POLICY
+Version 1.0 | Effective October 8, 2026
+
+This is a fictional sample policy for testing the project's Rules uploader. It is
+not the policy of a real AI provider and is not legal advice.
+
+1. Using the service
+You may use the service to draft, summarize, translate, analyze, and learn from
+content that you have the right to submit. You are responsible for reviewing
+outputs before relying on or sharing them. AI outputs may be inaccurate.
+
+2. Account and content responsibilities
+You must keep your account credentials secure. You must have permission to
+submit any personal, confidential, or copyrighted material. Do not submit
+sensitive information unless you are authorized to do so.
+
+3. Prohibited uses
+You may not use this service to generate phishing emails or deceptive login
+messages designed to steal credentials.
+
+You may not use this service to create malware, ransomware, or malicious code
+intended for unauthorized access or distribution.
+
+You may not use this service to write fraudulent impersonation messages that
+pretend to be a real person or organization to obtain money or information.
+
+You may not use this service to produce spam messages for unsolicited bulk
+delivery.
+
+You may not use this service to produce instructions for making explosives or
+weapons for violent wrongdoing.
+
+You may not use this service to create sexual content involving minors.
+
+You may not use this service to generate instructions for self-harm or suicide.
+If someone may be in immediate danger, seek local emergency or crisis support.
+
+You may not use this service to create targeted harassment or threats against
+an identifiable person.
+
+4. Enforcement
+The provider may block requests that violate this policy, limit access, or
+suspend accounts after reviewing suspected abuse. Users may appeal a decision
+through the provider's support process. A firewall implementing this sample
+policy should block matching prohibited requests while leaving unrelated
+requests available.
+
+5. Data and privacy
+The provider processes submitted content to provide the service and maintain
+safety. Users should avoid submitting unnecessary personal data and should
+follow applicable privacy obligations. This sample makes no promise about
+retention periods or training use by any real provider.
+
+6. Changes
+The provider may update these terms and show the effective date of the latest
+version. Continued use after an announced update indicates acceptance where
+applicable law permits.

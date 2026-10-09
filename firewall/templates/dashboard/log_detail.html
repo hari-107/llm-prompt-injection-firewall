@@ -1,0 +1,98 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Log {{ log.request_id|truncatechars:12 }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="page-title mb-0">Attack Inspection</div>
+  <div>
+    <a href="{% url 'dashboard:logs' %}" class="btn btn-outline-secondary btn-sm">← Back</a>
+    <a href="{% url 'reports:log_pdf' log.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-file-earmark-pdf"></i> PDF report</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">Verdict</div>
+      <div class="card-body">
+        <div class="mb-2"><span class="badge badge-{{ log.action }} fs-6">{{ log.action|upper }}</span>
+          <span class="badge badge-{{ log.risk_level|default:'safe' }} fs-6">{{ log.risk_level|default:"—" }}</span></div>
+        <table class="table table-sm mb-0">
+          <tr><td class="text-dim">Risk score</td><td class="text-end">{{ log.risk_score|floatformat:4 }}</td></tr>
+          <tr><td class="text-dim">AI confidence</td><td class="text-end">{{ log.ai_confidence|floatformat:4 }}</td></tr>
+          <tr><td class="text-dim">Direction</td><td class="text-end">{{ log.direction }}</td></tr>
+          <tr><td class="text-dim">Latency</td><td class="text-end">{{ log.response_time_ms }}ms</td></tr>
+          <tr><td class="text-dim">Model</td><td class="text-end">{{ log.model_used|default:"—" }}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header">Client / Forensics</div>
+      <div class="card-body small">
+        <table class="table table-sm mb-0">
+          <tr><td class="text-dim">Request ID</td><td class="text-end mono">{{ log.request_id }}</td></tr>
+          <tr><td class="text-dim">Timestamp</td><td class="text-end">{{ log.created_at|date:"Y-m-d H:i:s" }}</td></tr>
+          <tr><td class="text-dim">IP</td><td class="text-end">{{ log.ip_address|default:"—" }}</td></tr>
+          <tr><td class="text-dim">Browser</td><td class="text-end">{{ log.browser|default:"—" }}</td></tr>
+          <tr><td class="text-dim">OS</td><td class="text-end">{{ log.os|default:"—" }}</td></tr>
+          <tr><td class="text-dim">Prompt hash</td><td class="text-end mono" style="word-break:break-all">{{ log.prompt_hash|truncatechars:20 }}</td></tr>
+          <tr><td class="text-dim">Row hash</td><td class="text-end mono" style="word-break:break-all">{{ log.row_hash|truncatechars:20 }}</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">Matched rules &amp; detected attacks</div>
+      <div class="card-body">
+        {% if log.matched_rules %}
+          {% for r in log.matched_rules %}<span class="badge badge-high me-1 mb-1">{{ r }}</span>{% endfor %}
+        {% else %}<span class="text-dim">No rule matches.</span>{% endif %}
+        <hr>
+        <div class="text-dim small mb-1">Attack categories</div>
+        {% for a in log.detected_attacks %}<span class="badge badge-medium me-1 mb-1">{{ a }}</span>{% empty %}<span class="text-dim">None</span>{% endfor %}
+        {% if log.obfuscation_flags %}
+        <hr><div class="text-dim small mb-1">Obfuscation flags</div>
+        {% for f in log.obfuscation_flags %}<span class="badge badge-low me-1 mb-1">{{ f }}</span>{% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if log.sanitized_prompt %}
+    <div class="card mt-3"><div class="card-header">Sanitized prompt</div>
+      <div class="card-body"><pre class="mb-0">{{ log.sanitized_prompt }}</pre></div></div>
+    {% endif %}
+
+    {% if log.chat_metadata %}
+    <div class="card mt-3"><div class="card-header">Chat security telemetry</div>
+      <div class="card-body">
+        <p>Ollama latency: {{ log.chat_metadata.ollama_latency_ms }} ms</p>
+        <p>AI correction used: {{ log.chat_metadata.correction_used|yesno:"Yes,No" }}</p>
+        <p>Correction confidence: {{ log.chat_metadata.correction_confidence|default_if_none:"N/A" }}</p>
+        <p>Total latency: {{ log.chat_metadata.total_latency_ms }} ms</p>
+      </div></div>
+    {% endif %}
+    {% if log.sanitized_output %}
+    <div class="card mt-3"><div class="card-header">Masked output</div>
+      <div class="card-body"><pre class="mb-0">{{ log.sanitized_output }}</pre></div></div>
+    {% endif %}
+
+    <div class="card mt-3">
+      <div class="card-header">Analyst triage</div>
+      <div class="card-body">
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <button name="false_positive" class="btn btn-sm {% if log.marked_false_positive %}btn-warning{% else %}btn-outline-warning{% endif %}">
+            {% if log.marked_false_positive %}<i class="bi bi-check"></i> {% endif %}False positive</button>
+        </form>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <button name="false_negative" class="btn btn-sm {% if log.marked_false_negative %}btn-danger{% else %}btn-outline-danger{% endif %}">
+            {% if log.marked_false_negative %}<i class="bi bi-check"></i> {% endif %}False negative</button>
+        </form>
+        <span class="text-dim small ms-2">Flags feed the analytics FP/FN counters.</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

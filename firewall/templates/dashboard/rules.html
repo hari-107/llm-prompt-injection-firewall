@@ -1,0 +1,133 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Rules{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+  <div><div class="section-eyebrow">POLICY CONTROL</div><h1 class="page-title mb-0">Rules &amp; policies</h1><p class="page-intro">Decide what the firewall detects, review provider terms, and turn individual rules on or off.</p></div>
+  <div>
+    <a class="btn btn-outline-secondary btn-sm" href="/api/rules/export/" target="_blank"><i class="bi bi-download"></i> Export</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/firewall/rule/add/" target="_blank"><i class="bi bi-plus-lg"></i> New rule</a>
+  </div>
+</div>
+<ol class="policy-step mb-3" aria-label="Policy setup"><li><span>1</span> Upload terms</li><li><span>2</span> Review patterns</li><li><span>3</span> Activate a provider policy</li></ol>
+<p class="text-dim small mb-4">Disabling a rule excludes its matched text from rule and AI classifier scoring. Other enabled rules and independent risk signals still apply.</p>
+
+{% if not can_manage %}<div class="alert alert-secondary py-2 small">Your role is read-only for rules. Toggling is disabled.</div>{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-file-earmark-text me-2 text-info"></i>Upload an AI provider's terms</div>
+      <div class="card-body">
+        <p class="text-dim small">Upload a PDF, DOCX, or UTF-8 TXT use policy. Local Ollama extracts explicit prohibitions, checks proposed patterns against examples, and shows a preview. Nothing changes until you activate a draft.</p>
+        {% if can_manage %}
+        <form method="post" action="{% url 'dashboard:policy_upload' %}" enctype="multipart/form-data" id="policy-upload-form">
+          {% csrf_token %}
+          <div class="row g-2">
+            <div class="col-md-5"><label class="form-label small" for="provider-name">AI provider</label><input class="form-control" id="provider-name" name="provider_name" maxlength="120" placeholder="e.g. Example AI" required></div>
+            <div class="col-md-7"><label class="form-label small" for="terms-file">Terms or use policy</label><input class="form-control" id="terms-file" type="file" name="terms" accept=".pdf,.docx,.txt" required></div>
+          </div>
+          <button class="btn btn-primary btn-sm mt-3" id="upload-button"><i class="bi bi-file-earmark-arrow-up"></i> Extract rules for review</button>
+          <span class="text-dim small ms-2" id="upload-status" aria-live="polite"></span>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-shield-check me-2 text-info"></i>Active provider policy</div>
+      <div class="card-body">
+        <p class="small mb-2">{% if active_policy %}<strong>{{ active_policy.name }}</strong>{% else %}<strong>Built-in defaults only</strong>{% endif %}</p>
+        <p class="text-dim small">Built-in prompt-injection rules are always included. Choose one provider profile for both the scan API and chatbot gateway.</p>
+        {% if can_manage %}
+        <form method="post" action="{% url 'dashboard:policy_switch' %}" class="d-flex gap-2 align-items-center">
+          {% csrf_token %}
+          <select class="form-select form-select-sm" name="profile_id" aria-label="Active provider policy">
+            <option value="">Built-in defaults only</option>
+            {% for profile in profiles %}<option value="{{ profile.pk }}" {% if active_policy.pk == profile.pk %}selected{% endif %}>{{ profile.name }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-outline-primary btn-sm">Apply</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if recent_drafts %}
+<div class="card mb-4">
+  <div class="card-header">Recent policy previews</div>
+  <div class="card-body py-2">
+    {% for draft in recent_drafts %}<div class="d-flex justify-content-between py-1 small"><a href="{% url 'dashboard:policy_preview' draft.pk %}">{{ draft.provider_name }} · {{ draft.source_filename }}</a><span class="text-dim">{% if draft.activated_at %}Activated{% else %}Awaiting review{% endif %} · {{ draft.created_at|date:"M j, Y" }}</span></div>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center"><span><i class="bi bi-list-check me-2 text-info"></i>Detection library</span><span class="text-dim small">{{ rules|length }} rules</span></div>
+  <div class="rule-toolbar">
+    <input class="form-control form-control-sm" id="ruleSearch" type="search" placeholder="Search ID, category, or description" aria-label="Search detection rules">
+    <select class="form-select form-select-sm" id="ruleStatus" aria-label="Filter rules by status"><option value="all">All statuses</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select>
+    <span class="rule-count" id="ruleCount" aria-live="polite"></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Rule ID</th><th>Source</th><th>Category</th><th>Severity</th><th>ATLAS</th><th>Description</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for rule in rules %}
+        <tr class="rule-row" data-status="{% if rule.enabled %}enabled{% else %}disabled{% endif %}">
+          <td class="mono small">{{ rule.rule_id }}</td>
+          <td class="small">{% if rule.policy_profile %}{{ rule.policy_profile.name }}{% elif rule.builtin %}Built-in{% else %}Custom{% endif %}{% if rule.policy_profile and active_policy.pk != rule.policy_profile.pk %}<br><span class="text-dim">Profile inactive</span>{% endif %}</td>
+          <td class="small">{{ rule.category }}</td>
+          <td><span class="badge badge-{{ rule.severity }}">{{ rule.severity }}</span></td>
+          <td class="small text-dim">{{ rule.atlas|default:"—" }}</td>
+          <td class="small text-dim rule-description">{{ rule.description|truncatechars:90 }}</td>
+          <td>
+            {% if can_manage %}
+            <form method="post" class="d-inline">{% csrf_token %}
+              <button name="toggle" value="{{ rule.pk }}" class="btn btn-sm rule-state {% if rule.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}" aria-label="{% if rule.enabled %}Disable{% else %}Enable{% endif %} rule {{ rule.rule_id }}">
+                {% if rule.enabled %}Enabled{% else %}Disabled{% endif %}</button>
+            </form>
+            {% else %}
+              <span class="badge {% if rule.enabled %}badge-allow{% else %}badge-safe{% endif %}">{{ rule.enabled|yesno:"Enabled,Disabled" }}</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-dim py-4">No rules. Run <code>python manage.py seed_rules</code>.</td></tr>
+      {% endfor %}
+        <tr id="ruleFilterEmpty" hidden><td colspan="7" class="text-center text-dim py-4">No rules match these filters.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('policy-upload-form')?.addEventListener('submit', function(){
+  document.getElementById('upload-button').disabled = true;
+  document.getElementById('upload-status').textContent = 'Reading terms and validating patterns with local AI...';
+});
+(() => {
+  const search = document.getElementById('ruleSearch');
+  const status = document.getElementById('ruleStatus');
+  const rows = [...document.querySelectorAll('.rule-row')];
+  const count = document.getElementById('ruleCount');
+  const empty = document.getElementById('ruleFilterEmpty');
+  const filter = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    let visible = 0;
+    for (const row of rows) {
+      const matches = (!query || row.textContent.toLocaleLowerCase().includes(query)) && (status.value === 'all' || row.dataset.status === status.value);
+      row.hidden = !matches;
+      if (matches) visible++;
+    }
+    count.textContent = visible + ' of ' + rows.length + ' shown';
+    empty.hidden = visible !== 0 || rows.length === 0;
+  };
+  search.addEventListener('input', filter);
+  status.addEventListener('change', filter);
+  filter();
+})();
+</script>
+{% endblock %}

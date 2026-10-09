@@ -1,0 +1,62 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Audit Logs{% endblock %}
+{% block content %}
+<div class="section-eyebrow">REQUEST HISTORY</div>
+<h1 class="page-title mb-1">Audit logs</h1>
+<p class="page-intro mb-4">Trace every scan decision and inspect the evidence behind it.</p>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-3">
+    <input name="q" value="{{ q }}" class="form-control" placeholder="Search request ID…">
+  </div>
+  <div class="col-md-2">
+    <select name="action" class="form-select">
+      <option value="">All actions</option>
+      <option value="allow" {% if action_f == 'allow' %}selected{% endif %}>Allow</option>
+      <option value="warn" {% if action_f == 'warn' %}selected{% endif %}>Warn</option>
+      <option value="sanitize" {% if action_f == 'sanitize' %}selected{% endif %}>Sanitize</option>
+      <option value="block" {% if action_f == 'block' %}selected{% endif %}>Block</option>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select name="risk_level" class="form-select">
+      <option value="">All risk levels</option>
+      <option value="safe" {% if level_f == 'safe' %}selected{% endif %}>Safe</option>
+      <option value="low" {% if level_f == 'low' %}selected{% endif %}>Low</option>
+      <option value="medium" {% if level_f == 'medium' %}selected{% endif %}>Medium</option>
+      <option value="high" {% if level_f == 'high' %}selected{% endif %}>High</option>
+      <option value="critical" {% if level_f == 'critical' %}selected{% endif %}>Critical</option>
+    </select>
+  </div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div>
+  <div class="col-md-3 text-end">
+    <a class="btn btn-outline-secondary" href="?{{ request.GET.urlencode }}&export=csv"><i class="bi bi-filetype-csv"></i> CSV</a>
+    <a class="btn btn-outline-secondary" href="?{{ request.GET.urlencode }}&export=json"><i class="bi bi-filetype-json"></i> JSON</a>
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Time</th><th>Request ID</th><th>IP</th><th>Risk</th><th>Score</th><th>Action</th><th>Attacks</th><th>Latency</th></tr></thead>
+      <tbody>
+      {% for log in logs %}
+        <tr onclick="location.href='{% url 'dashboard:log_detail' log.pk %}'" style="cursor:pointer">
+          <td class="text-dim small">{{ log.created_at|date:"M d H:i:s" }}</td>
+          <td class="mono small">{{ log.request_id|truncatechars:12 }}</td>
+          <td class="small text-dim">{{ log.ip_address|default:"—" }}</td>
+          <td><span class="badge badge-{{ log.risk_level|default:'safe' }}">{{ log.risk_level|default:"—" }}</span></td>
+          <td class="small">{{ log.risk_score|floatformat:2 }}</td>
+          <td><span class="badge badge-{{ log.action }}">{{ log.action }}</span></td>
+          <td class="small text-dim">{{ log.detected_attacks|join:", "|truncatechars:36|default:"—" }}</td>
+          <td class="small text-dim">{{ log.response_time_ms }}ms</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="text-center text-dim py-4">No matching logs.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="text-dim small mt-2">Showing up to 200 rows. Refine with filters or export the full result set.</p>
+{% endblock %}
